@@ -14,6 +14,7 @@ const ls = {
 };
 const ruta = (location.hash.match(/^#\/r\/([a-z0-9-]+)/) || [])[1] || null;   // /#/r/<slug> = vista del jugador
 const esJugador = !!ruta;
+if (esJugador) document.body.classList.add('jugador');
 
 let A = null;                                    // sesión del dueño
 let S = { negocio: null, canchas: [], reservas: [] };   // datos del dueño
