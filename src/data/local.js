@@ -2,7 +2,7 @@
 // Sirve para mostrar la app sin base de datos. No es seguro ni compartido: es solo una demostración.
 import { uid, iso, addDias, hoyD, inicioMs, codigo } from '../util.js';
 
-const KEY = 'ayllu-canchas-demo-v4';
+const KEY = 'ayllu-canchas-demo-v5';
 const SLUG = 'demo';
 let mem = null;
 
@@ -15,7 +15,7 @@ function demoInicial() {
   return {
     negocio: { id: 'demo', slug: SLUG, nombre: 'Complejo Los Olivos (demo)', yape: '987 654 321', whatsapp: '987654321', sena: 20, minutosSena: 30, horaInicio: 16, horaFin: 24 },
     canchas: [{ id: c1, nombre: 'Cancha 1', precioHora: 70, deporte: 'futbol', fotoUrl: null }, { id: c2, nombre: 'Cancha 2', precioHora: 80, deporte: 'futbol', fotoUrl: null }],
-    extras: [{ id: uid(), nombre: 'Juego de chalecos', precio: 15 }, { id: uid(), nombre: 'Balón', precio: 10 }, { id: uid(), nombre: 'Caja de cervezas', precio: 90 }],
+    extras: [{ id: uid(), nombre: 'Chalecos', precio: 0, tipo: 'servicio' }, { id: uid(), nombre: 'Agua', precio: 3, tipo: 'producto' }, { id: uid(), nombre: 'Gaseosa', precio: 5, tipo: 'producto' }, { id: uid(), nombre: 'Caja de cervezas', precio: 90, tipo: 'producto' }],
     reservas: [
       R(c1, h, 19, 1, 'Carlos Ríos', '911222333', 20, true, 'enlace'),
       R(c1, m, 20, 2, 'Los Halcones FC', '922333444', 30, true, 'dueno'),
@@ -77,8 +77,9 @@ export function crearLocal() {
       db.canchas = db.canchas.filter(c => c.id !== id); guardar(); return {};
     },
     async guardarExtra(e) {
-      if (e.id) { const x = db.extras.find(y => y.id === e.id); if (x) Object.assign(x, { nombre: e.nombre, precio: e.precio }); }
-      else db.extras.push({ id: uid(), nombre: e.nombre, precio: e.precio });
+      const tipo = e.tipo === 'servicio' ? 'servicio' : 'producto', precio = tipo === 'servicio' ? 0 : e.precio;   // un servicio incluido no tiene costo
+      if (e.id) { const x = db.extras.find(y => y.id === e.id); if (x) Object.assign(x, { nombre: e.nombre, precio }); }
+      else db.extras.push({ id: uid(), nombre: e.nombre, precio, tipo });
       guardar(); return {};
     },
     async quitarExtra(id) { db.extras = db.extras.filter(x => x.id !== id); guardar(); return {}; },
@@ -106,7 +107,7 @@ export function crearLocal() {
       for (const x of pedidos) {   // el precio y el nombre salen del catálogo del dueño, no del jugador
         const e = db.extras.find(y => y.id === x.id);
         if (!e || !(x.cant >= 1 && x.cant <= 10)) return { error: 'datos_invalidos' };
-        lista.push({ nombre: e.nombre, precio: e.precio, cant: x.cant });
+        lista.push({ nombre: e.nombre, precio: e.precio, tipo: e.tipo, cant: x.cant });
       }
       const r = { id: uid(), canchaId: d.canchaId, fecha: d.fecha, hora: d.hora, dur: d.dur, nombre: d.nombre.trim(), telefono: d.telefono,
         sena: db.negocio.sena, senaPagada: false, estado: 'pendiente', origen: 'enlace',

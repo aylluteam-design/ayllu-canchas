@@ -169,3 +169,4 @@ header .fila-top,header .neg,nav .interno{max-width:1100px;margin-left:auto;marg
 .step{display:flex;align-items:center;gap:10px}
 .step b{min-width:1.4em;text-align:center}
 .cfg-cancha select{width:100%}
+.cfg-ex{grid-template-columns:1fr auto}

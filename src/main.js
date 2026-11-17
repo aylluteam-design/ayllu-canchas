@@ -33,8 +33,9 @@ const totalExtras = lista => (lista || []).reduce((a, x) => a + Number(x.precio)
 const total = r => (canchaPorId(r.canchaId)?.precioHora || 0) * r.dur + totalExtras(r.extras);
 const DEPORTES = { futbol: 'Fútbol', loza: 'Loza multiuso', basquet: 'Básquet', voley: 'Vóley' };
 const imgCancha = c => c?.fotoUrl || `img/${DEPORTES[c?.deporte] ? c.deporte : 'futbol'}.svg`;
-const textoExtras = lista => (lista && lista.length) ? ` Agregados: ${lista.map(x => `${x.cant} ${x.nombre}`).join(', ')}.` : '';
-const listaExtras = lista => lista.map(x => `${x.cant} × ${esc(x.nombre)} (${soles(x.precio * x.cant)})`).join(' · ');
+const textoExtras = lista => (lista && lista.length) ? ` Agregados: ${lista.map(x => x.tipo === 'servicio' ? x.nombre : `${x.cant} ${x.nombre}`).join(', ')}.` : '';
+const listaExtras = lista => lista.map(x => x.tipo === 'servicio' ? `${esc(x.nombre)} (incluido)` : `${x.cant} × ${esc(x.nombre)} (${soles(x.precio * x.cant)})`).join(' · ');
+const hayCobro = lista => (lista || []).some(x => x.tipo !== 'servicio');
 const HORAS = () => ({ inicio: S.negocio?.horaInicio ?? 16, fin: S.negocio?.horaFin ?? 24 });
 
 function urlJugador() {
@@ -259,13 +260,19 @@ function vistaConfig() {
       <h3 style="margin-top:8px">Canchas</h3>${filas}
       <button class="btn sec chico" data-a="agregarCancha">+ Agregar cancha</button>
       <p class="sub" style="margin:8px 0 0">La foto de cada cancha es una imagen genérica según el deporte. Subir tus propias fotos viene en una siguiente versión.</p></div>
-    <div class="card"><h3>Agregados</h3>
-      <p class="sub">Lo que ofreces además de la cancha (chalecos, balón, bebidas…). El jugador los marca al reservar, tú los ves en su reserva y se cobran en la cancha. Los precios de ejemplo son referenciales: cámbialos.</p>
-      ${S.extras.map(x => `<div class="cfg-cancha">
+    <div class="card"><h3>Incluido en la reserva</h3>
+      <p class="sub">Lo que forma parte del servicio y no se cobra (chalecos, proyector…). El jugador lo marca si lo necesita y tú lo ves en su reserva.</p>
+      ${S.extras.filter(x => x.tipo === 'servicio').map(x => `<div class="cfg-cancha cfg-ex">
+        <label>Nombre<input data-a-ex="nombre" data-eid="${x.id}" value="${esc(x.nombre)}"></label>
+        <button class="btn sec chico" data-a="quitarExtra" data-id="${x.id}" aria-label="Quitar ${esc(x.nombre)}">Quitar</button></div>`).join('') || '<p class="sub">Aún no tienes servicios incluidos.</p>'}
+      <button class="btn sec chico" data-a="agregarExtra" data-tipo="servicio">+ Agregar servicio incluido</button></div>
+    <div class="card"><h3>Tienda</h3>
+      <p class="sub">Bebidas y comida que vendes. El jugador las pide con su reserva, suman al total y se cobran en la cancha. Los precios de ejemplo son referenciales: cámbialos por los tuyos.</p>
+      ${S.extras.filter(x => x.tipo !== 'servicio').map(x => `<div class="cfg-cancha">
         <label>Nombre<input data-a-ex="nombre" data-eid="${x.id}" value="${esc(x.nombre)}"></label>
         <label>Precio (S/)<input type="number" min="0" step="1" data-a-ex="precio" data-eid="${x.id}" value="${x.precio}"></label>
-        <button class="btn sec chico" data-a="quitarExtra" data-id="${x.id}" aria-label="Quitar ${esc(x.nombre)}">Quitar</button></div>`).join('') || '<p class="sub">Aún no tienes agregados.</p>'}
-      <button class="btn sec chico" data-a="agregarExtra">+ Agregar un agregado</button></div>
+        <button class="btn sec chico" data-a="quitarExtra" data-id="${x.id}" aria-label="Quitar ${esc(x.nombre)}">Quitar</button></div>`).join('') || '<p class="sub">Aún no tienes productos.</p>'}
+      <button class="btn sec chico" data-a="agregarExtra" data-tipo="producto">+ Agregar producto</button></div>
     <div class="card"><h3>Cobro de la seña</h3>
       <p class="sub">Lo ve el jugador al reservar. El pago es por Yape/Plin fuera de la app: tú marcas "Recibí la seña".</p>
       <div class="fila">
@@ -320,13 +327,17 @@ function vistaJugador() {
     horas += `<button class="hbtn" data-a="jHora" data-h="${h}" aria-pressed="${P.hora === h}" ${libre ? '' : 'disabled'}><b>${horaTxt(h)}</b><small>${sub}</small></button>`;
   }
   const ex = I.extras || [];
-  const extrasSel = ex.filter(x => P.extras[x.id] > 0).map(x => ({ id: x.id, nombre: x.nombre, precio: x.precio, cant: P.extras[x.id] }));
-  const extrasHtml = ex.length ? `<div class="card"><h3>Agregados <small style="font-weight:400">(opcional)</small></h3>
-      <p class="sub">Pídelos con tu reserva y los pagas en la cancha.</p>
-      ${ex.map(x => `<div class="ex"><span><b>${esc(x.nombre)}</b><small>${soles(x.precio)}</small></span>
+  const extrasSel = ex.filter(x => P.extras[x.id] > 0).map(x => ({ id: x.id, nombre: x.nombre, precio: x.precio, tipo: x.tipo, cant: P.extras[x.id] }));
+  const servicios = ex.filter(x => x.tipo === 'servicio'), tienda = ex.filter(x => x.tipo !== 'servicio');
+  const extrasHtml = (servicios.length ? `<div class="card"><h3>Incluido en tu reserva <small style="font-weight:400">(pídelo si lo necesitas)</small></h3>
+      <p class="sub">Sin costo adicional.</p>
+      <div class="chips">${servicios.map(x => `<button class="chip" data-a="jExtra" data-id="${x.id}" data-d="${P.extras[x.id] ? -1 : 1}" aria-pressed="${!!P.extras[x.id]}">${P.extras[x.id] ? '✓ ' : '+ '}${esc(x.nombre)}</button>`).join('')}</div></div>` : '')
+    + (tienda.length ? `<div class="card"><h3>Tienda <small style="font-weight:400">(opcional)</small></h3>
+      <p class="sub">Pídelo con tu reserva y lo pagas en la cancha.</p>
+      ${tienda.map(x => `<div class="ex"><span><b>${esc(x.nombre)}</b><small>${soles(x.precio)}</small></span>
         <span class="step"><button class="btn sec chico" data-a="jExtra" data-id="${x.id}" data-d="-1" aria-label="Quitar ${esc(x.nombre)}" ${P.extras[x.id] > 0 ? '' : 'disabled'}>−</button>
         <b aria-live="polite">${P.extras[x.id] || 0}</b>
-        <button class="btn sec chico" data-a="jExtra" data-id="${x.id}" data-d="1" aria-label="Agregar ${esc(x.nombre)}">+</button></span></div>`).join('')}</div>` : '';
+        <button class="btn sec chico" data-a="jExtra" data-id="${x.id}" data-d="1" aria-label="Agregar ${esc(x.nombre)}">+</button></span></div>`).join('')}</div>` : '');
   let form = '';
   if (P.hora !== null && disponibleJ(c.id, P.fecha, P.hora, P.dur)) {
     form = `<div class="card">
@@ -356,7 +367,7 @@ function vistaMiReserva(r) {
   const I = P.info, c = I.canchas.find(x => x.id === r.canchaId), fecha = String(r.fecha).slice(0, 10);
   const totalR = (c?.precioHora || 0) * r.dur + totalExtras(r.extras);
   const resumen = `<div class="resumen"><b>${esc(c?.nombre || '')}</b> · ${esc(fechaMsg(fecha))} · ${horaTxt(r.hora)} a ${horaTxt(r.hora + r.dur)}<br>
-      ${r.extras?.length ? `Agregados: ${listaExtras(r.extras)} (se pagan en la cancha)<br>` : ''}Total ${soles(totalR)} · Seña ${soles(r.sena)}<br>Código: <span class="codigo">${esc(r.codigo)}</span></div>`;
+      ${r.extras?.length ? `Agregados: ${listaExtras(r.extras)}${hayCobro(r.extras) ? ' (se pagan en la cancha)' : ''}<br>` : ''}Total ${soles(totalR)} · Seña ${soles(r.sena)}<br>Código: <span class="codigo">${esc(r.codigo)}</span></div>`;
   const volver = '<div class="acciones" style="justify-content:flex-start"><button class="btn sec" data-a="jVolver">Volver a los horarios</button></div>';
   if (r.estado === 'pendiente') {
     const texto = `Hola, soy ${r.nombre}. Reservé ${c?.nombre} ${fechaMsg(fecha)} de ${horaTxt(r.hora)} a ${horaTxt(r.hora + r.dur)} (código ${r.codigo}).${textoExtras(r.extras)} Te envío la constancia de la seña de ${soles(r.sena)} por Yape. 🙏`;
@@ -411,7 +422,7 @@ function modalVer(id) {
     <p class="sub">${esc(c?.nombre)} · ${esc(fechaCorta(r.fecha))} · ${horaTxt(r.hora)} a ${horaTxt(r.hora + r.dur)}</p>
     <p>Total ${soles(total(r))} · Seña ${soles(r.sena)} ${estadoTag}<br>
     Teléfono: ${r.telefono ? esc(r.telefono) : 'sin registrar'}<br>
-    ${r.extras?.length ? `Agregados: ${listaExtras(r.extras)} (se cobran en la cancha)<br>` : ''}
+    ${r.extras?.length ? `Agregados: ${listaExtras(r.extras)}${hayCobro(r.extras) ? ' (se cobran en la cancha)' : ''}<br>` : ''}
     Origen: ${r.origen === 'enlace' ? 'enlace de reservas' : 'registrada por ti'} · Código ${cod(r.id)}</p>
     <div class="acciones" style="justify-content:flex-start;margin-bottom:10px">${botones}</div>
     <div class="acciones">
@@ -494,7 +505,7 @@ const acciones = {
   },
   resetMsg: () => { ls.set(KEY_MSG, ''); render(); toast('Mensaje restablecido'); },
   agregarCancha: async () => { await hacer(api.guardarCancha({ nombre: 'Cancha ' + (S.canchas.length + 1), precioHora: 70, deporte: S.canchas.at(-1)?.deporte || 'futbol' })); await recargar(); },
-  agregarExtra: async () => { await hacer(api.guardarExtra({ nombre: 'Nuevo agregado', precio: 10 })); await recargar(); },
+  agregarExtra: async el => { const serv = el.dataset.tipo === 'servicio'; await hacer(api.guardarExtra({ nombre: serv ? 'Nuevo servicio' : 'Nuevo producto', precio: serv ? 0 : 10, tipo: el.dataset.tipo })); await recargar(); },
   quitarExtra: async el => { await hacer(api.quitarExtra(el.dataset.id)); await recargar(); },
   quitarCancha: async el => {
     if (S.canchas.length <= 1) { toast('Debe quedar al menos una cancha'); return; }
@@ -561,7 +572,7 @@ document.addEventListener('change', async e => {
   }
   if (t.dataset.aEx) {
     const x = S.extras.find(y => y.id === t.dataset.eid); if (!x) return;
-    const patch = { id: x.id, nombre: x.nombre, precio: x.precio };
+    const patch = { id: x.id, nombre: x.nombre, precio: x.precio, tipo: x.tipo };
     if (t.dataset.aEx === 'nombre') patch.nombre = t.value.trim() || x.nombre; else patch.precio = Math.max(0, Number(t.value) || 0);
     await hacer(api.guardarExtra(patch), 'Guardado'); await recargar();
   }

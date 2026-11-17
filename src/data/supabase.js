@@ -13,7 +13,7 @@ const traducirAuth = e => MENSAJES_AUTH[e.message] || (/fetch|network/i.test(e.m
 const mapNegocio = n => ({ id: n.id, slug: n.slug, nombre: n.nombre, yape: n.yape, whatsapp: n.whatsapp, sena: Number(n.sena),
   minutosSena: n.minutos_sena, horaInicio: n.hora_inicio, horaFin: n.hora_fin });
 const mapCancha = c => ({ id: c.id, nombre: c.nombre, precioHora: Number(c.precio_hora), deporte: c.deporte, fotoUrl: c.foto_url });
-const mapExtra = e => ({ id: e.id, nombre: e.nombre, precio: Number(e.precio) });
+const mapExtra = e => ({ id: e.id, nombre: e.nombre, precio: Number(e.precio), tipo: e.tipo });
 const mapReserva = r => ({ id: r.id, canchaId: r.cancha_id, fecha: r.fecha, hora: r.hora, dur: r.dur, nombre: r.nombre, telefono: r.telefono,
   sena: Number(r.sena), senaPagada: r.sena_pagada, estado: r.estado, origen: r.origen, venceEn: r.vence_en,
   recordatorioEnviado: r.recordatorio_enviado, creada: r.created_at, extras: r.extras || [] });
@@ -66,7 +66,7 @@ export function crearSupabase(url, key) {
       const { error: e2 } = await sb.from('canchas').insert([{ negocio_id: n.id, nombre: 'Cancha 1', precio_hora: 70 }, { negocio_id: n.id, nombre: 'Cancha 2', precio_hora: 80 }]);
       if (e2) return { error: e2.message };
       // Agregados de ejemplo (el dueño los edita o quita en Ajustes)
-      await sb.from('extras').insert([{ negocio_id: n.id, nombre: 'Juego de chalecos', precio: 15 }, { negocio_id: n.id, nombre: 'Balón', precio: 10 }, { negocio_id: n.id, nombre: 'Caja de cervezas', precio: 90 }]);
+      await sb.from('extras').insert([{ negocio_id: n.id, nombre: 'Chalecos', precio: 0, tipo: 'servicio' }, { negocio_id: n.id, nombre: 'Agua', precio: 3, tipo: 'producto' }, { negocio_id: n.id, nombre: 'Gaseosa', precio: 5, tipo: 'producto' }, { negocio_id: n.id, nombre: 'Caja de cervezas', precio: 90, tipo: 'producto' }]);
       return {};
     },
     async guardarNegocio(patch) {
@@ -81,9 +81,10 @@ export function crearSupabase(url, key) {
       return error ? { error: error.message } : {};
     },
     async guardarExtra(e) {
-      if (e.id) { const { error } = await sb.from('extras').update({ nombre: e.nombre, precio: e.precio }).eq('id', e.id); return error ? { error: error.message } : {}; }
+      const tipo = e.tipo === 'servicio' ? 'servicio' : 'producto', precio = tipo === 'servicio' ? 0 : e.precio;   // un servicio incluido no tiene costo
+      if (e.id) { const { error } = await sb.from('extras').update({ nombre: e.nombre, precio }).eq('id', e.id); return error ? { error: error.message } : {}; }
       const { data: n } = await sb.from('negocios').select('id').maybeSingle();
-      const { error } = await sb.from('extras').insert({ negocio_id: n.id, nombre: e.nombre, precio: e.precio });
+      const { error } = await sb.from('extras').insert({ negocio_id: n.id, nombre: e.nombre, precio, tipo });
       return error ? { error: error.message } : {};
     },
     async quitarExtra(id) { const { error } = await sb.from('extras').delete().eq('id', id); return error ? { error: error.message } : {}; },

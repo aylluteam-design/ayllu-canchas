@@ -6,13 +6,17 @@ alter table public.canchas
   add column deporte  text not null default 'futbol' check (deporte in ('futbol','loza','basquet','voley')),
   add column foto_url text check (foto_url is null or foto_url ~ '^https://');   -- opcional; si es null se muestra una imagen genérica
 
--- ---------- Agregados que ofrece el complejo (chalecos, balón, cervezas…) ----------
+-- ---------- Agregados que ofrece el complejo ----------
+-- tipo 'servicio' = parte del servicio, sin costo (chalecos, proyector…): el jugador solo lo pide.
+-- tipo 'producto' = de la tienda, con precio (bebidas, comida): suma al total y se cobra en la cancha.
 create table public.extras (
   id          uuid primary key default gen_random_uuid(),
   negocio_id  uuid not null references public.negocios(id) on delete cascade,
   nombre      text not null check (char_length(btrim(nombre)) between 2 and 60),
   precio      numeric(8,2) not null default 0 check (precio >= 0),
-  created_at  timestamptz not null default now()
+  tipo        text not null default 'producto' check (tipo in ('servicio','producto')),
+  created_at  timestamptz not null default now(),
+  check (tipo = 'producto' or precio = 0)
 );
 create index extras_negocio_idx on public.extras (negocio_id);
 alter table public.extras enable row level security;
@@ -37,7 +41,7 @@ begin
     'canchas', coalesce((select json_agg(json_build_object('id', c.id, 'nombre', c.nombre, 'precioHora', c.precio_hora,
                             'deporte', c.deporte, 'fotoUrl', c.foto_url) order by c.created_at, c.nombre)
                          from public.canchas c where c.negocio_id = n.id), '[]'::json),
-    'extras', coalesce((select json_agg(json_build_object('id', e.id, 'nombre', e.nombre, 'precio', e.precio) order by e.created_at, e.nombre)
+    'extras', coalesce((select json_agg(json_build_object('id', e.id, 'nombre', e.nombre, 'precio', e.precio, 'tipo', e.tipo) order by e.tipo desc, e.created_at, e.nombre)
                         from public.extras e where e.negocio_id = n.id), '[]'::json));
 end $$;
 
@@ -60,7 +64,7 @@ begin
   if p_extras is null or jsonb_typeof(p_extras) <> 'array' or jsonb_array_length(p_extras) > 10 then
     raise exception 'datos_invalidos'; end if;
   begin
-    select coalesce(jsonb_agg(jsonb_build_object('nombre', e.nombre, 'precio', e.precio, 'cant', x.cant)), '[]'::jsonb) into lista
+    select coalesce(jsonb_agg(jsonb_build_object('nombre', e.nombre, 'precio', e.precio, 'tipo', e.tipo, 'cant', x.cant)), '[]'::jsonb) into lista
     from (select (v->>'id')::uuid as id, (v->>'cant')::int as cant from jsonb_array_elements(p_extras) v) x
     join public.extras e on e.id = x.id and e.negocio_id = n.id
     where x.cant between 1 and 10;
