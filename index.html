@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ayllu Canchas</title>
+<meta name="description" content="Reserva de canchas sintéticas: horarios en vivo, seña por Yape y sin dobles reservas.">
+<meta name="theme-color" content="#1f4d3a">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Canchas">
+</head>
+<body>
+<header>
+  <div class="fila-top"><h1 id="tit">Ayllu Canchas</h1><span class="badge" id="badge" hidden></span>
+    <button class="sw" id="instalar" data-a="instalar" hidden>Instalar app</button>
+    <button class="sw" id="salir" data-a="salir" hidden>Salir</button></div>
+  <div class="neg" id="neg"></div>
+</header>
+<nav aria-label="Secciones" id="nav" hidden>
+  <button data-a="tab" data-tab="agenda">Agenda</button>
+  <button data-a="tab" data-tab="pend">Pendientes</button>
+  <button data-a="tab" data-tab="manana">Recordar</button>
+  <button data-a="tab" data-tab="enlace">Enlace</button>
+  <button data-a="tab" data-tab="config">Ajustes</button>
+</nav>
+<main id="vista"></main>
+<div id="modal" role="dialog" aria-modal="true"><div class="caja" id="caja"></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
