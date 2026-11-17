@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" role="img" aria-label="Cancha de fútbol (imagen genérica)">
+<rect width="800" height="400" fill="#2f7d4f"/>
+<rect x="0" y="0" width="50" height="400" fill="#fff" opacity=".05"/><rect x="100" y="0" width="50" height="400" fill="#fff" opacity=".05"/><rect x="200" y="0" width="50" height="400" fill="#fff" opacity=".05"/><rect x="300" y="0" width="50" height="400" fill="#fff" opacity=".05"/><rect x="400" y="0" width="50" height="400" fill="#fff" opacity=".05"/><rect x="500" y="0" width="50" height="400" fill="#fff" opacity=".05"/><rect x="600" y="0" width="50" height="400" fill="#fff" opacity=".05"/><rect x="700" y="0" width="50" height="400" fill="#fff" opacity=".05"/>
+<rect x="30" y="30" width="740" height="340" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/><line x1="400" y1="30" x2="400" y2="370" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/>
+<circle cx="400" cy="200" r="55" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/><circle cx="400" cy="200" r="5" fill="#fff"/>
+<rect x="30" y="120" width="110" height="160" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/><rect x="660" y="120" width="110" height="160" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/>
+<rect x="30" y="165" width="45" height="70" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/><rect x="725" y="165" width="45" height="70" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/>
+</svg>

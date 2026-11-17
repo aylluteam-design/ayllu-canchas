@@ -28,7 +28,7 @@ Para ver lo que ve el jugador, abre `http://localhost:5173/#/r/demo` en otra pes
 
 1. En Supabase crea un proyecto para Canchas. Recomendación: uno aparte del de Inspecciones, para no mezclar datos de
    clientes de productos distintos (el plan Free permite 2 proyectos activos; verifica en tu cuenta).
-2. **SQL Editor → New query**, pega todo `supabase/migrations/001_canchas.sql` y toca **Run**. Debe decir "Success".
+2. **SQL Editor → New query**, pega todo `supabase/migrations/001_canchas.sql` y toca **Run**. Debe decir "Success". Luego repite con **otra query nueva** pegando `supabase/migrations/002_deporte_extras.sql` (deporte, imágenes y agregados) y toca **Run**.
 3. **Authentication → Providers → Email**: para la demo, desactiva "Confirm email" (así el dueño entra apenas crea su
    cuenta). Para clientes reales, déjalo activado.
 4. **Project Settings → API**: copia la **Project URL** y la clave pública (aparece como *Publishable key* o *anon public*,
@@ -104,6 +104,7 @@ app corre en modo demo. En modo real se comprobó que compila, muestra el acceso
 
 ```
 supabase/migrations/001_canchas.sql   tablas, reglas, seguridad y funciones públicas
+supabase/migrations/002_deporte_extras.sql   deporte por cancha, fotos y agregados (chalecos, bebidas…)
 src/main.js                           pantallas del dueño y del jugador
 src/data/local.js                     modo demo
 src/data/supabase.js                  modo real

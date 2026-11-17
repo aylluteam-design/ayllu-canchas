@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" role="img" aria-label="Cancha de básquet (imagen genérica)">
+<rect width="800" height="400" fill="#b8793a"/>
+
+<rect x="30" y="30" width="740" height="340" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/><line x1="400" y1="30" x2="400" y2="370" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/>
+<circle cx="400" cy="200" r="50" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/><rect x="30" y="140" width="150" height="120" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/><rect x="620" y="140" width="150" height="120" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/>
+<path d="M180 150 A55 55 0 0 1 180 250" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/><path d="M620 150 A55 55 0 0 0 620 250" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/>
+<circle cx="60" cy="200" r="9" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/><circle cx="740" cy="200" r="9" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/>
+</svg>

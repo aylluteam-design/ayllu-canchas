@@ -2,7 +2,7 @@
 // Sirve para mostrar la app sin base de datos. No es seguro ni compartido: es solo una demostración.
 import { uid, iso, addDias, hoyD, inicioMs, codigo } from '../util.js';
 
-const KEY = 'ayllu-canchas-demo-v3';
+const KEY = 'ayllu-canchas-demo-v4';
 const SLUG = 'demo';
 let mem = null;
 
@@ -10,11 +10,12 @@ function demoInicial() {
   const c1 = uid(), c2 = uid(), h = iso(hoyD()), m = iso(addDias(hoyD(), 1)), p = iso(addDias(hoyD(), 2));
   const R = (canchaId, fecha, hora, dur, nombre, telefono, sena, pag, origen, estado = 'activa', venceMin = null) => ({
     id: uid(), canchaId, fecha, hora, dur, nombre, telefono, sena, senaPagada: pag, estado, origen,
-    venceEn: venceMin ? new Date(Date.now() + venceMin * 60000).toISOString() : null, recordatorioEnviado: false, creada: new Date().toISOString()
+    venceEn: venceMin ? new Date(Date.now() + venceMin * 60000).toISOString() : null, recordatorioEnviado: false, creada: new Date().toISOString(), extras: []
   });
   return {
     negocio: { id: 'demo', slug: SLUG, nombre: 'Complejo Los Olivos (demo)', yape: '987 654 321', whatsapp: '987654321', sena: 20, minutosSena: 30, horaInicio: 16, horaFin: 24 },
-    canchas: [{ id: c1, nombre: 'Cancha 1', precioHora: 70 }, { id: c2, nombre: 'Cancha 2', precioHora: 80 }],
+    canchas: [{ id: c1, nombre: 'Cancha 1', precioHora: 70, deporte: 'futbol', fotoUrl: null }, { id: c2, nombre: 'Cancha 2', precioHora: 80, deporte: 'futbol', fotoUrl: null }],
+    extras: [{ id: uid(), nombre: 'Juego de chalecos', precio: 15 }, { id: uid(), nombre: 'Balón', precio: 10 }, { id: uid(), nombre: 'Caja de cervezas', precio: 90 }],
     reservas: [
       R(c1, h, 19, 1, 'Carlos Ríos', '911222333', 20, true, 'enlace'),
       R(c1, m, 20, 2, 'Los Halcones FC', '922333444', 30, true, 'dueno'),
@@ -63,28 +64,34 @@ export function crearLocal() {
     async registrar() { logueado = true; return {}; },
     async salir() { logueado = false; },
     // --- panel del dueño ---
-    async cargarDueno() { expirar(); return copia({ negocio: db.negocio, canchas: db.canchas, reservas: db.reservas }); },
+    async cargarDueno() { expirar(); return copia({ negocio: db.negocio, canchas: db.canchas, extras: db.extras, reservas: db.reservas }); },
     async crearNegocio() { return {}; },
     async guardarNegocio(p) { Object.assign(db.negocio, p); guardar(); return {}; },
     async guardarCancha(c) {
       if (c.id) { const x = db.canchas.find(y => y.id === c.id); if (x) Object.assign(x, c); }
-      else db.canchas.push({ id: uid(), nombre: c.nombre, precioHora: c.precioHora });
+      else db.canchas.push({ id: uid(), nombre: c.nombre, precioHora: c.precioHora, deporte: c.deporte || 'futbol', fotoUrl: null });
       guardar(); return {};
     },
     async quitarCancha(id) {
       if (db.reservas.some(r => r.canchaId === id)) return { error: 'Esa cancha tiene reservas; no se puede quitar.' };
       db.canchas = db.canchas.filter(c => c.id !== id); guardar(); return {};
     },
+    async guardarExtra(e) {
+      if (e.id) { const x = db.extras.find(y => y.id === e.id); if (x) Object.assign(x, { nombre: e.nombre, precio: e.precio }); }
+      else db.extras.push({ id: uid(), nombre: e.nombre, precio: e.precio });
+      guardar(); return {};
+    },
+    async quitarExtra(id) { db.extras = db.extras.filter(x => x.id !== id); guardar(); return {}; },
     async crearReservaDueno(d) {
       expirar();
       if (choque(d.canchaId, d.fecha, d.hora, d.dur)) { const c = choque(d.canchaId, d.fecha, d.hora, d.dur); return { error: `Choque: ${c.nombre} ya tiene esa cancha de ${c.hora}:00 a ${c.hora + c.dur}:00.` }; }
       const r = { id: uid(), canchaId: d.canchaId, fecha: d.fecha, hora: d.hora, dur: d.dur, nombre: d.nombre.trim(), telefono: d.telefono || '',
-        sena: d.sena, senaPagada: !!d.senaPagada, estado: 'activa', origen: 'dueno', venceEn: null, recordatorioEnviado: false, creada: new Date().toISOString() };
+        sena: d.sena, senaPagada: !!d.senaPagada, estado: 'activa', origen: 'dueno', venceEn: null, recordatorioEnviado: false, creada: new Date().toISOString(), extras: [] };
       db.reservas.push(r); guardar(); return { reserva: copia(r) };
     },
     async actualizarReserva(id, patch) { const r = db.reservas.find(x => x.id === id); if (r) { Object.assign(r, patch); guardar(); } return {}; },
     // --- jugador (público) ---
-    async publico() { return copia({ ...db.negocio, canchas: db.canchas }); },
+    async publico() { return copia({ ...db.negocio, canchas: db.canchas, extras: db.extras }); },
     async ocupados(slug, desde, dias) {
       expirar();
       const hasta = iso(addDias(new Date(desde + 'T00:00:00'), dias));
@@ -95,15 +102,21 @@ export function crearLocal() {
       if (inicioMs(d.fecha, d.hora) <= Date.now()) return { error: 'pasado' };
       if (db.reservas.filter(r => r.estado === 'pendiente' && r.telefono === d.telefono).length >= 2) return { error: 'limite_pendientes' };
       if (choque(d.canchaId, d.fecha, d.hora, d.dur)) return { error: 'ocupado' };
+      const pedidos = d.extras || [], lista = [];
+      for (const x of pedidos) {   // el precio y el nombre salen del catálogo del dueño, no del jugador
+        const e = db.extras.find(y => y.id === x.id);
+        if (!e || !(x.cant >= 1 && x.cant <= 10)) return { error: 'datos_invalidos' };
+        lista.push({ nombre: e.nombre, precio: e.precio, cant: x.cant });
+      }
       const r = { id: uid(), canchaId: d.canchaId, fecha: d.fecha, hora: d.hora, dur: d.dur, nombre: d.nombre.trim(), telefono: d.telefono,
         sena: db.negocio.sena, senaPagada: false, estado: 'pendiente', origen: 'enlace',
-        venceEn: new Date(Date.now() + db.negocio.minutosSena * 60000).toISOString(), recordatorioEnviado: false, creada: new Date().toISOString() };
+        venceEn: new Date(Date.now() + db.negocio.minutosSena * 60000).toISOString(), recordatorioEnviado: false, creada: new Date().toISOString(), extras: lista };
       db.reservas.push(r); guardar();
       return { reserva: { id: r.id, codigo: codigo(r.id), venceEn: r.venceEn } };
     },
     async estado(id) {
       expirar(); const r = db.reservas.find(x => x.id === id); if (!r) return null;
-      return { id: r.id, estado: r.estado, venceEn: r.venceEn, canchaId: r.canchaId, fecha: r.fecha, hora: r.hora, dur: r.dur, sena: r.sena, nombre: r.nombre, codigo: codigo(r.id) };
+      return { id: r.id, estado: r.estado, venceEn: r.venceEn, canchaId: r.canchaId, fecha: r.fecha, hora: r.hora, dur: r.dur, sena: r.sena, nombre: r.nombre, extras: r.extras || [], codigo: codigo(r.id) };
     },
     async reiniciarDemo() { db = demoInicial(); guardar(); }
   });

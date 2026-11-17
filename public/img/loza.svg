@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" role="img" aria-label="Loza deportiva (imagen genérica)">
+<rect width="800" height="400" fill="#3d6f8e"/>
+
+<rect x="30" y="30" width="740" height="340" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/><line x1="400" y1="30" x2="400" y2="370" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/>
+<circle cx="400" cy="200" r="50" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/><path d="M30 120 A80 80 0 0 1 30 280" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/><path d="M770 120 A80 80 0 0 0 770 280" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/>
+<rect x="15" y="170" width="15" height="60" fill="#fff" opacity=".8"/><rect x="770" y="170" width="15" height="60" fill="#fff" opacity=".8"/>
+</svg>

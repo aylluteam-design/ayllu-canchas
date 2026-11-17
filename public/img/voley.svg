@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" role="img" aria-label="Cancha de vóley (imagen genérica)">
+<rect width="800" height="400" fill="#c9a227"/>
+
+<rect x="60" y="50" width="680" height="300" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/><line x1="400" y1="35" x2="400" y2="365" stroke="#fff" stroke-width="7"/>
+<line x1="260" y1="50" x2="260" y2="350" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/><line x1="540" y1="50" x2="540" y2="350" stroke="#fff" stroke-width="4" fill="none" opacity=".9"/>
+</svg>

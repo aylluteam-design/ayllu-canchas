@@ -12,10 +12,11 @@ const traducirAuth = e => MENSAJES_AUTH[e.message] || (/fetch|network/i.test(e.m
 
 const mapNegocio = n => ({ id: n.id, slug: n.slug, nombre: n.nombre, yape: n.yape, whatsapp: n.whatsapp, sena: Number(n.sena),
   minutosSena: n.minutos_sena, horaInicio: n.hora_inicio, horaFin: n.hora_fin });
-const mapCancha = c => ({ id: c.id, nombre: c.nombre, precioHora: Number(c.precio_hora) });
+const mapCancha = c => ({ id: c.id, nombre: c.nombre, precioHora: Number(c.precio_hora), deporte: c.deporte, fotoUrl: c.foto_url });
+const mapExtra = e => ({ id: e.id, nombre: e.nombre, precio: Number(e.precio) });
 const mapReserva = r => ({ id: r.id, canchaId: r.cancha_id, fecha: r.fecha, hora: r.hora, dur: r.dur, nombre: r.nombre, telefono: r.telefono,
   sena: Number(r.sena), senaPagada: r.sena_pagada, estado: r.estado, origen: r.origen, venceEn: r.vence_en,
-  recordatorioEnviado: r.recordatorio_enviado, creada: r.created_at });
+  recordatorioEnviado: r.recordatorio_enviado, creada: r.created_at, extras: r.extras || [] });
 const NEG_COLS = { nombre: 'nombre', yape: 'yape', whatsapp: 'whatsapp', sena: 'sena', minutosSena: 'minutos_sena', horaInicio: 'hora_inicio', horaFin: 'hora_fin' };
 const RES_COLS = { estado: 'estado', senaPagada: 'sena_pagada', venceEn: 'vence_en', recordatorioEnviado: 'recordatorio_enviado' };
 const aColumnas = (patch, mapa) => Object.fromEntries(Object.entries(patch).filter(([k]) => mapa[k]).map(([k, v]) => [mapa[k], v]));
@@ -48,13 +49,14 @@ export function crearSupabase(url, key) {
       await sb.rpc('expirar_pendientes');
       const { data: n, error } = await sb.from('negocios').select('*').maybeSingle();
       if (error) throw error;
-      if (!n) return { negocio: null, canchas: [], reservas: [] };
-      const [c, r] = await Promise.all([
+      if (!n) return { negocio: null, canchas: [], extras: [], reservas: [] };
+      const [c, r, x] = await Promise.all([
         sb.from('canchas').select('*').eq('negocio_id', n.id).order('created_at').order('nombre'),
-        sb.from('reservas').select('*').eq('negocio_id', n.id).gte('fecha', hace(30)).order('inicio')
+        sb.from('reservas').select('*').eq('negocio_id', n.id).gte('fecha', hace(30)).order('inicio'),
+        sb.from('extras').select('*').eq('negocio_id', n.id).order('created_at').order('nombre')
       ]);
-      if (c.error) throw c.error; if (r.error) throw r.error;
-      return { negocio: mapNegocio(n), canchas: c.data.map(mapCancha), reservas: r.data.map(mapReserva) };
+      if (c.error) throw c.error; if (r.error) throw r.error; if (x.error) throw x.error;
+      return { negocio: mapNegocio(n), canchas: c.data.map(mapCancha), extras: x.data.map(mapExtra), reservas: r.data.map(mapReserva) };
     },
     async crearNegocio({ nombre, slug }) {
       const { data: u } = await sb.auth.getUser();
@@ -62,7 +64,10 @@ export function crearSupabase(url, key) {
       const { data: n, error } = await sb.from('negocios').insert({ owner_id: u.user.id, nombre, slug }).select().single();
       if (error) return { error: error.code === '23505' ? 'Ese enlace ya está en uso. Prueba con otro nombre.' : error.message };
       const { error: e2 } = await sb.from('canchas').insert([{ negocio_id: n.id, nombre: 'Cancha 1', precio_hora: 70 }, { negocio_id: n.id, nombre: 'Cancha 2', precio_hora: 80 }]);
-      return e2 ? { error: e2.message } : {};
+      if (e2) return { error: e2.message };
+      // Agregados de ejemplo (el dueño los edita o quita en Ajustes)
+      await sb.from('extras').insert([{ negocio_id: n.id, nombre: 'Juego de chalecos', precio: 15 }, { negocio_id: n.id, nombre: 'Balón', precio: 10 }, { negocio_id: n.id, nombre: 'Caja de cervezas', precio: 90 }]);
+      return {};
     },
     async guardarNegocio(patch) {
       const { data: n } = await sb.from('negocios').select('id').maybeSingle();
@@ -70,11 +75,18 @@ export function crearSupabase(url, key) {
       return error ? { error: error.message } : {};
     },
     async guardarCancha(c) {
-      if (c.id) { const { error } = await sb.from('canchas').update({ nombre: c.nombre, precio_hora: c.precioHora }).eq('id', c.id); return error ? { error: error.message } : {}; }
+      if (c.id) { const { error } = await sb.from('canchas').update({ nombre: c.nombre, precio_hora: c.precioHora, deporte: c.deporte || 'futbol' }).eq('id', c.id); return error ? { error: error.message } : {}; }
       const { data: n } = await sb.from('negocios').select('id').maybeSingle();
-      const { error } = await sb.from('canchas').insert({ negocio_id: n.id, nombre: c.nombre, precio_hora: c.precioHora });
+      const { error } = await sb.from('canchas').insert({ negocio_id: n.id, nombre: c.nombre, precio_hora: c.precioHora, deporte: c.deporte || 'futbol' });
       return error ? { error: error.message } : {};
     },
+    async guardarExtra(e) {
+      if (e.id) { const { error } = await sb.from('extras').update({ nombre: e.nombre, precio: e.precio }).eq('id', e.id); return error ? { error: error.message } : {}; }
+      const { data: n } = await sb.from('negocios').select('id').maybeSingle();
+      const { error } = await sb.from('extras').insert({ negocio_id: n.id, nombre: e.nombre, precio: e.precio });
+      return error ? { error: error.message } : {};
+    },
+    async quitarExtra(id) { const { error } = await sb.from('extras').delete().eq('id', id); return error ? { error: error.message } : {}; },
     async quitarCancha(id) {
       const { error } = await sb.from('canchas').delete().eq('id', id);
       if (error) return { error: error.code === '23503' ? 'Esa cancha tiene reservas; no se puede quitar.' : error.message };
@@ -107,7 +119,7 @@ export function crearSupabase(url, key) {
       return data.map(r => ({ canchaId: r.cancha_id, fecha: r.fecha, hora: r.hora, dur: r.dur }));
     },
     async reservar(slug, d) {
-      const { data, error } = await sb.rpc('public_reservar', { p_slug: slug, p_cancha: d.canchaId, p_fecha: d.fecha, p_hora: d.hora, p_dur: d.dur, p_nombre: d.nombre, p_telefono: d.telefono });
+      const { data, error } = await sb.rpc('public_reservar', { p_slug: slug, p_cancha: d.canchaId, p_fecha: d.fecha, p_hora: d.hora, p_dur: d.dur, p_nombre: d.nombre, p_telefono: d.telefono, p_extras: d.extras || [] });
       if (error) return { error: codigoError(error) };
       return { reserva: data };
     },

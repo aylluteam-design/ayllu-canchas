@@ -1,0 +1,40 @@
+# Recorrido de canchas con imagen y agregados (modo demo). Requiere: npm run build && npx vite preview --port 4173
+import sys
+from datetime import date, timedelta
+from playwright.sync_api import sync_playwright
+man=(date.today()+timedelta(days=3)).isoformat()
+res=[]; ok=lambda n,c: (res.append(c), print('OK  ' if c else 'FALLA', n))
+S=sys.argv[1] if len(sys.argv)>1 else '.'
+with sync_playwright() as p:
+    b=p.chromium.launch(); ctx=b.new_context(viewport={'width':1280,'height':900}); errs=[]
+    j=ctx.new_page(); j.on('pageerror', lambda e: errs.append(str(e))); j.on('console', lambda m: errs.append(m.text) if m.type=='error' else None)
+    j.goto('http://localhost:4173/#/r/demo'); j.wait_for_selector('.ccard')
+    ok('Hay tarjetas de cancha con imagen', j.locator('.ccard img').count()==2)
+    ok('Imagen carga (no rota)', j.evaluate("()=>[...document.querySelectorAll('.ccard img,.hero img')].every(i=>i.complete&&i.naturalWidth>0)"))
+    j.click('.ccard >> nth=1'); ok('Hero muestra Cancha 2', 'Cancha 2' in j.inner_text('.hero'))
+    j.click(f'[data-a=jDia][data-f="{man}"]'); j.click('[data-a=jHora][data-h="18"]')
+    ok('Sección Agregados visible', 'Agregados' in j.inner_text('#vista'))
+    j.click('[data-a=jExtra][data-d="1"] >> nth=0'); j.click('[data-a=jExtra][data-d="1"] >> nth=2'); j.click('[data-a=jExtra][data-d="1"] >> nth=2')
+    r=j.inner_text('.resumen'); ok('Resumen: total = 80 + 15 + 2×90 = S/ 275', 'S/ 275' in r and 'Juego de chalecos' in r)
+    j.screenshot(path=S+'/ex_jugador.png', full_page=True)
+    j.fill('#j-nombre','Ana Prueba'); j.fill('#j-tel','955111222'); j.click('[data-a=jReservar]'); j.wait_for_selector('.codigo')
+    t=j.inner_text('#vista'); ok('Pantalla de reserva muestra agregados y total', 'Caja de cervezas' in t and 'S/ 275' in t)
+    ok('WhatsApp incluye agregados', 'Agregados' in (j.get_attribute('#j-pague','href') or '') or 'Agregados' in __import__('urllib.parse',fromlist=['x']).unquote(j.get_attribute('#j-pague','href')))
+    d=ctx.new_page(); d.goto('http://localhost:4173/'); d.click('[data-a=entrarDemo]'); d.wait_for_selector('.tabla-wrap')
+    d.click('[data-tab=pend]'); t=d.inner_text('#vista'); ok('Dueño ve agregados en Pendientes', 'Ana Prueba' in t and '2 × Caja de cervezas' in t)
+    d.locator('.item', has_text='Ana Prueba').locator('[data-a=ver]').click(); ok('Detalle muestra agregados y total con extras', 'Agregados' in d.inner_text('#caja'))
+    d.click('[data-a=cerrar]'); d.click('[data-tab=config]')
+    ok('Ajustes: deporte y agregados', d.locator('[data-a-ch=deporte]').count()==2 and d.locator('[data-a-ex=nombre]').count()==3)
+    d.fill('[data-a-ex=precio] >> nth=0','20'); d.dispatch_event('[data-a-ex=precio] >> nth=0','change'); d.wait_for_timeout(300)
+    ok('Editar precio de agregado se guarda', d.input_value('[data-a-ex=precio] >> nth=0')=='20')
+    d.select_option('[data-a-ch=deporte] >> nth=1','basquet'); d.wait_for_timeout(300)
+    d.click('[data-a=agregarExtra]'); d.wait_for_timeout(300); ok('Agregar agregado nuevo', d.locator('[data-a-ex=nombre]').count()==4)
+    d.click('[data-a=quitarExtra] >> nth=3'); d.wait_for_timeout(300); ok('Quitar agregado', d.locator('[data-a-ex=nombre]').count()==3)
+    d.screenshot(path=S+'/ex_ajustes.png', full_page=True)
+    j2=ctx.new_page(); j2.goto('http://localhost:4173/#/r/demo'); j2.wait_for_selector('.ccard'); j2.click('.ccard >> nth=1')
+    ok('Cancha cambiada a básquet usa imagen de básquet', 'basquet.svg' in j2.get_attribute('.hero img','src'))
+    j2.set_viewport_size({'width':390,'height':800}); j2.screenshot(path=S+'/ex_movil.png', full_page=True)
+    ok('Móvil sin scroll horizontal', j2.evaluate("()=>document.documentElement.scrollWidth<=window.innerWidth"))
+    ok('Sin errores de consola', not errs)
+    b.close()
+print(f"{sum(res)}/{len(res)} OK"); sys.exit(0 if all(res) else 1)

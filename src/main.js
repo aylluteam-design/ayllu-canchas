@@ -17,19 +17,24 @@ const esJugador = !!ruta;
 if (esJugador) document.body.classList.add('jugador');
 
 let A = null;                                    // sesión del dueño
-let S = { negocio: null, canchas: [], reservas: [] };   // datos del dueño
+let S = { negocio: null, canchas: [], extras: [], reservas: [] };   // datos del dueño
 let cargando = true, errorCarga = '';
 const ui = { tab: 'agenda', canchaId: null, lunes: lunesDe(hoyD()), fechaRec: iso(addDias(hoyD(), 1)), confirmarCancelar: false, authMsg: '', authAviso: '', slugEditado: false };
 const j0 = ls.get(KEY_J, {});
 const P = { slug: ruta, info: null, noExiste: false, ocupados: [], fecha: iso(hoyD()), canchaId: null, dur: 1, hora: null,
-  nombre: j0.nombre || '', tel: j0.telefono || '', resId: null, res: null, mias: [] };
+  nombre: j0.nombre || '', tel: j0.telefono || '', resId: null, res: null, mias: [], extras: {} };
 
 const canchaPorId = id => S.canchas.find(c => c.id === id);
 const canchaActual = () => canchaPorId(ui.canchaId) || S.canchas[0];
 const ocupan = () => S.reservas.filter(r => r.estado === 'activa' || r.estado === 'pendiente');
 const activas = () => S.reservas.filter(r => r.estado === 'activa');
 const pendientes = () => S.reservas.filter(r => r.estado === 'pendiente');
-const total = r => (canchaPorId(r.canchaId)?.precioHora || 0) * r.dur;
+const totalExtras = lista => (lista || []).reduce((a, x) => a + Number(x.precio) * x.cant, 0);
+const total = r => (canchaPorId(r.canchaId)?.precioHora || 0) * r.dur + totalExtras(r.extras);
+const DEPORTES = { futbol: 'Fútbol', loza: 'Loza multiuso', basquet: 'Básquet', voley: 'Vóley' };
+const imgCancha = c => c?.fotoUrl || `img/${DEPORTES[c?.deporte] ? c.deporte : 'futbol'}.svg`;
+const textoExtras = lista => (lista && lista.length) ? ` Agregados: ${lista.map(x => `${x.cant} ${x.nombre}`).join(', ')}.` : '';
+const listaExtras = lista => lista.map(x => `${x.cant} × ${esc(x.nombre)} (${soles(x.precio * x.cant)})`).join(' · ');
 const HORAS = () => ({ inicio: S.negocio?.horaInicio ?? 16, fin: S.negocio?.horaFin ?? 24 });
 
 function urlJugador() {
@@ -44,9 +49,9 @@ function mensajeEnlace() {
 }
 const cod = codigo;
 function textoSena(r) { return r.senaPagada ? 'Tu seña ya está registrada.' : (r.sena > 0 ? `Falta la seña de ${soles(r.sena)} para asegurar la cancha.` : ''); }
-const textoRecordatorio = r => `Hola ${r.nombre}, te recordamos tu reserva en ${S.negocio.nombre} (${canchaPorId(r.canchaId)?.nombre}) ${fechaMsg(r.fecha)} a las ${horaTxt(r.hora)}. ${textoSena(r)} ¿Confirmas que vienes? ⚽`.replace(/\s+/g, ' ').trim();
-const textoConfirmacion = r => `Hola ${r.nombre}, tu reserva en ${S.negocio.nombre} quedó: ${canchaPorId(r.canchaId)?.nombre}, ${fechaMsg(r.fecha)} de ${horaTxt(r.hora)} a ${horaTxt(r.hora + r.dur)}. Total ${soles(total(r))}. ${textoSena(r)} ⚽`.replace(/\s+/g, ' ').trim();
-const textoPendiente = r => `Hola ${r.nombre}, vimos tu reserva de ${canchaPorId(r.canchaId)?.nombre} ${fechaMsg(r.fecha)} a las ${horaTxt(r.hora)}. Falta la seña de ${soles(r.sena)}${S.negocio.yape ? ` (Yape ${S.negocio.yape})` : ''} para asegurarla. ⚽`;
+const textoRecordatorio = r => `Hola ${r.nombre}, te recordamos tu reserva en ${S.negocio.nombre} (${canchaPorId(r.canchaId)?.nombre}) ${fechaMsg(r.fecha)} a las ${horaTxt(r.hora)}. ${textoSena(r)} ¿Confirmas que vienes?${textoExtras(r.extras)} ⚽`.replace(/\s+/g, ' ').trim();
+const textoConfirmacion = r => `Hola ${r.nombre}, tu reserva en ${S.negocio.nombre} quedó: ${canchaPorId(r.canchaId)?.nombre}, ${fechaMsg(r.fecha)} de ${horaTxt(r.hora)} a ${horaTxt(r.hora + r.dur)}. Total ${soles(total(r))}.${textoExtras(r.extras)} ${textoSena(r)} ⚽`.replace(/\s+/g, ' ').trim();
+const textoPendiente = r => `Hola ${r.nombre}, vimos tu reserva de ${canchaPorId(r.canchaId)?.nombre} ${fechaMsg(r.fecha)} a las ${horaTxt(r.hora)}. Falta la seña de ${soles(r.sena)}${S.negocio.yape ? ` (Yape ${S.negocio.yape})` : ''} para asegurarla.${textoExtras(r.extras)} ⚽`;
 
 /* ====================== CARGA ====================== */
 let recargando = false;
@@ -173,7 +178,7 @@ function vistaPend() {
   const items = lista.map(r => `<div class="item">
       <div class="hora">${horaTxt(r.hora)}</div>
       <div class="quien"><b>${esc(r.nombre)}</b> <span class="tag espera">vence en <span class="contador" data-vence="${r.venceEn}"></span></span>
-        <small>${esc(canchaPorId(r.canchaId)?.nombre)} · ${esc(fechaCorta(r.fecha))} · ${r.dur} h · ${esc(r.telefono)} · seña ${soles(r.sena)}</small></div>
+        <small>${esc(canchaPorId(r.canchaId)?.nombre)} · ${esc(fechaCorta(r.fecha))} · ${r.dur} h · ${esc(r.telefono)} · seña ${soles(r.sena)}</small>${r.extras?.length ? `<small>Agregados: ${listaExtras(r.extras)}</small>` : ''}</div>
       <div class="acciones" style="margin:0"><button class="btn chico" data-a="confirmarSena" data-id="${r.id}">Recibí la seña</button><button class="btn sec chico" data-a="ver" data-id="${r.id}">Más…</button></div>
     </div>`).join('');
   return `
@@ -239,6 +244,7 @@ function vistaConfig() {
   const n = S.negocio;
   const filas = S.canchas.map(c => `<div class="cfg-cancha">
       <label>Nombre<input data-a-ch="nombre" data-cid="${c.id}" value="${esc(c.nombre)}"></label>
+      <label>Deporte<select data-a-ch="deporte" data-cid="${c.id}">${Object.entries(DEPORTES).map(([k, v]) => `<option value="${k}" ${k === (c.deporte || 'futbol') ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
       <label>S/ por hora<input type="number" min="0" step="1" data-a-ch="precioHora" data-cid="${c.id}" value="${c.precioHora}"></label>
       <button class="btn sec chico" data-a="quitarCancha" data-id="${c.id}" aria-label="Quitar ${esc(c.nombre)}">Quitar</button></div>`).join('');
   const optH = (sel, desde, hasta) => Array.from({ length: hasta - desde + 1 }, (_, i) => desde + i).map(h => `<option value="${h}" ${h === sel ? 'selected' : ''}>${horaTxt(h === 24 ? 0 : h)}${h === 24 ? ' (medianoche)' : ''}</option>`).join('');
@@ -251,7 +257,15 @@ function vistaConfig() {
         <label>Cierras a las<select id="cfg-hfin">${optH(n.horaFin, 1, 24)}</select></label>
       </div>
       <h3 style="margin-top:8px">Canchas</h3>${filas}
-      <button class="btn sec chico" data-a="agregarCancha">+ Agregar cancha</button></div>
+      <button class="btn sec chico" data-a="agregarCancha">+ Agregar cancha</button>
+      <p class="sub" style="margin:8px 0 0">La foto de cada cancha es una imagen genérica según el deporte. Subir tus propias fotos viene en una siguiente versión.</p></div>
+    <div class="card"><h3>Agregados</h3>
+      <p class="sub">Lo que ofreces además de la cancha (chalecos, balón, bebidas…). El jugador los marca al reservar, tú los ves en su reserva y se cobran en la cancha. Los precios de ejemplo son referenciales: cámbialos.</p>
+      ${S.extras.map(x => `<div class="cfg-cancha">
+        <label>Nombre<input data-a-ex="nombre" data-eid="${x.id}" value="${esc(x.nombre)}"></label>
+        <label>Precio (S/)<input type="number" min="0" step="1" data-a-ex="precio" data-eid="${x.id}" value="${x.precio}"></label>
+        <button class="btn sec chico" data-a="quitarExtra" data-id="${x.id}" aria-label="Quitar ${esc(x.nombre)}">Quitar</button></div>`).join('') || '<p class="sub">Aún no tienes agregados.</p>'}
+      <button class="btn sec chico" data-a="agregarExtra">+ Agregar un agregado</button></div>
     <div class="card"><h3>Cobro de la seña</h3>
       <p class="sub">Lo ve el jugador al reservar. El pago es por Yape/Plin fuera de la app: tú marcas "Recibí la seña".</p>
       <div class="fila">
@@ -295,7 +309,9 @@ function vistaJugador() {
     const d = addDias(hoyD(), i), f = iso(d);
     return `<button class="chip" data-a="jDia" data-f="${f}" aria-pressed="${f === P.fecha}">${i === 0 ? 'Hoy' : i === 1 ? 'Mañana' : `${DIAS_CORTO[d.getDay()]} ${d.getDate()}`}</button>`;
   }).join('');
-  const canchas = I.canchas.map(x => `<button class="chip" data-a="jCancha" data-id="${x.id}" aria-pressed="${x.id === c.id}">${esc(x.nombre)}</button>`).join('');
+  const canchas = I.canchas.map(x => `<button class="ccard" data-a="jCancha" data-id="${x.id}" aria-pressed="${x.id === c.id}">
+      <img src="${esc(imgCancha(x))}" alt="" loading="lazy"><span><b>${esc(x.nombre)}</b><small>${esc(DEPORTES[x.deporte] || 'Fútbol')} · ${soles(x.precioHora)}/h</small></span></button>`).join('');
+  const hero = `<div class="hero"><img src="${esc(imgCancha(c))}" alt="${esc(c.nombre)}"><div class="hero-t"><b>${esc(c.nombre)}</b><span>${esc(DEPORTES[c.deporte] || 'Fútbol')} · ${soles(c.precioHora)} por hora</span></div></div>`;
   const durs = [1, 2].map(d => `<button class="chip" data-a="jDur" data-d="${d}" aria-pressed="${P.dur === d}">${d} ${d === 1 ? 'hora' : 'horas'}</button>`).join('');
   let horas = '';
   for (let h = I.horaInicio; h < I.horaFin; h++) {
@@ -303,11 +319,19 @@ function vistaJugador() {
     const sub = libre ? soles(c.precioHora * P.dur) : (pasada ? 'pasó' : (h + P.dur > I.horaFin ? 'no alcanza' : 'ocupado'));
     horas += `<button class="hbtn" data-a="jHora" data-h="${h}" aria-pressed="${P.hora === h}" ${libre ? '' : 'disabled'}><b>${horaTxt(h)}</b><small>${sub}</small></button>`;
   }
+  const ex = I.extras || [];
+  const extrasSel = ex.filter(x => P.extras[x.id] > 0).map(x => ({ id: x.id, nombre: x.nombre, precio: x.precio, cant: P.extras[x.id] }));
+  const extrasHtml = ex.length ? `<div class="card"><h3>Agregados <small style="font-weight:400">(opcional)</small></h3>
+      <p class="sub">Pídelos con tu reserva y los pagas en la cancha.</p>
+      ${ex.map(x => `<div class="ex"><span><b>${esc(x.nombre)}</b><small>${soles(x.precio)}</small></span>
+        <span class="step"><button class="btn sec chico" data-a="jExtra" data-id="${x.id}" data-d="-1" aria-label="Quitar ${esc(x.nombre)}" ${P.extras[x.id] > 0 ? '' : 'disabled'}>−</button>
+        <b aria-live="polite">${P.extras[x.id] || 0}</b>
+        <button class="btn sec chico" data-a="jExtra" data-id="${x.id}" data-d="1" aria-label="Agregar ${esc(x.nombre)}">+</button></span></div>`).join('')}</div>` : '';
   let form = '';
   if (P.hora !== null && disponibleJ(c.id, P.fecha, P.hora, P.dur)) {
     form = `<div class="card">
       <div class="resumen"><b>${esc(c.nombre)}</b> · ${esc(fechaMsg(P.fecha))} · ${horaTxt(P.hora)} a ${horaTxt(P.hora + P.dur)}<br>
-        Total ${soles(c.precioHora * P.dur)} · Seña ${soles(I.sena)} por Yape</div>
+        ${extrasSel.length ? `Agregados: ${listaExtras(extrasSel)}<br>` : ''}Total ${soles(c.precioHora * P.dur + totalExtras(extrasSel))} · Seña ${soles(I.sena)} por Yape</div>
       <label>Tu nombre<input id="j-nombre" autocomplete="name" value="${esc(P.nombre)}"></label>
       <label>Tu celular<input id="j-tel" inputmode="tel" autocomplete="tel" placeholder="9XXXXXXXX" value="${esc(P.tel)}"></label>
       <p class="err" id="j-err" role="alert"></p>
@@ -323,17 +347,19 @@ function vistaJugador() {
   return `
     <h2>Elige tu horario</h2>
     <p class="sub">Ves solo los horarios libres. Reservas en un minuto y sin escribir por chat.</p>
-    <div class="dias">${dias}</div><div class="chips">${canchas}</div><div class="chips">${durs}</div>
-    <div class="horas">${horas}</div>${form}${lista}`;
+    <div class="canchas">${canchas}</div>${hero}
+    <h3 class="paso-t">¿Qué día y a qué hora?</h3>
+    <div class="dias">${dias}</div><div class="chips">${durs}</div>
+    <div class="horas">${horas}</div>${extrasHtml}${form}${lista}`;
 }
 function vistaMiReserva(r) {
   const I = P.info, c = I.canchas.find(x => x.id === r.canchaId), fecha = String(r.fecha).slice(0, 10);
-  const totalR = (c?.precioHora || 0) * r.dur;
+  const totalR = (c?.precioHora || 0) * r.dur + totalExtras(r.extras);
   const resumen = `<div class="resumen"><b>${esc(c?.nombre || '')}</b> · ${esc(fechaMsg(fecha))} · ${horaTxt(r.hora)} a ${horaTxt(r.hora + r.dur)}<br>
-      Total ${soles(totalR)} · Seña ${soles(r.sena)}<br>Código: <span class="codigo">${esc(r.codigo)}</span></div>`;
+      ${r.extras?.length ? `Agregados: ${listaExtras(r.extras)} (se pagan en la cancha)<br>` : ''}Total ${soles(totalR)} · Seña ${soles(r.sena)}<br>Código: <span class="codigo">${esc(r.codigo)}</span></div>`;
   const volver = '<div class="acciones" style="justify-content:flex-start"><button class="btn sec" data-a="jVolver">Volver a los horarios</button></div>';
   if (r.estado === 'pendiente') {
-    const texto = `Hola, soy ${r.nombre}. Reservé ${c?.nombre} ${fechaMsg(fecha)} de ${horaTxt(r.hora)} a ${horaTxt(r.hora + r.dur)} (código ${r.codigo}). Te envío la constancia de la seña de ${soles(r.sena)} por Yape. 🙏`;
+    const texto = `Hola, soy ${r.nombre}. Reservé ${c?.nombre} ${fechaMsg(fecha)} de ${horaTxt(r.hora)} a ${horaTxt(r.hora + r.dur)} (código ${r.codigo}).${textoExtras(r.extras)} Te envío la constancia de la seña de ${soles(r.sena)} por Yape. 🙏`;
     return `<h2>Horario apartado</h2>${resumen}
       <div class="card">
         <p style="margin:0 0 10px">Tienes <b class="contador" data-vence="${r.venceEn}"></b> para pagar la seña. Si no llega, el horario se libera.</p>
@@ -385,6 +411,7 @@ function modalVer(id) {
     <p class="sub">${esc(c?.nombre)} · ${esc(fechaCorta(r.fecha))} · ${horaTxt(r.hora)} a ${horaTxt(r.hora + r.dur)}</p>
     <p>Total ${soles(total(r))} · Seña ${soles(r.sena)} ${estadoTag}<br>
     Teléfono: ${r.telefono ? esc(r.telefono) : 'sin registrar'}<br>
+    ${r.extras?.length ? `Agregados: ${listaExtras(r.extras)} (se cobran en la cancha)<br>` : ''}
     Origen: ${r.origen === 'enlace' ? 'enlace de reservas' : 'registrada por ti'} · Código ${cod(r.id)}</p>
     <div class="acciones" style="justify-content:flex-start;margin-bottom:10px">${botones}</div>
     <div class="acciones">
@@ -419,7 +446,7 @@ const acciones = {
     ui.authMsg = ''; ui.authAviso = r.aviso || '';
     if (!r.aviso) { A = await api.sesion(); cargando = true; render(); await recargar(); } else render();
   },
-  salir: async () => { await api.salir(); A = null; S = { negocio: null, canchas: [], reservas: [] }; ui.tab = 'agenda'; render(); },
+  salir: async () => { await api.salir(); A = null; S = { negocio: null, canchas: [], extras: [], reservas: [] }; ui.tab = 'agenda'; render(); },
   crearNegocio: async () => {
     const nombre = val('#o-nombre').trim(), slug = slugify(val('#o-slug') || nombre);
     const err = $('#o-err');
@@ -466,7 +493,9 @@ const acciones = {
     if (ok) toast('Copiado'); else { if (src) { src.focus(); src.select(); } toast('No pude copiar solo: el texto quedó seleccionado, cópialo manualmente'); }
   },
   resetMsg: () => { ls.set(KEY_MSG, ''); render(); toast('Mensaje restablecido'); },
-  agregarCancha: async () => { await hacer(api.guardarCancha({ nombre: 'Cancha ' + (S.canchas.length + 1), precioHora: 70 })); await recargar(); },
+  agregarCancha: async () => { await hacer(api.guardarCancha({ nombre: 'Cancha ' + (S.canchas.length + 1), precioHora: 70, deporte: S.canchas.at(-1)?.deporte || 'futbol' })); await recargar(); },
+  agregarExtra: async () => { await hacer(api.guardarExtra({ nombre: 'Nuevo agregado', precio: 10 })); await recargar(); },
+  quitarExtra: async el => { await hacer(api.quitarExtra(el.dataset.id)); await recargar(); },
   quitarCancha: async el => {
     if (S.canchas.length <= 1) { toast('Debe quedar al menos una cancha'); return; }
     await hacer(api.quitarCancha(el.dataset.id)); await recargar();
@@ -475,6 +504,7 @@ const acciones = {
   // --- jugador ---
   jDia: el => { P.fecha = el.dataset.f; P.hora = null; render(); },
   jCancha: el => { P.canchaId = el.dataset.id; P.hora = null; render(); },
+  jExtra: el => { const id = el.dataset.id, n = Math.min(10, Math.max(0, (P.extras[id] || 0) + Number(el.dataset.d))); if (n) P.extras[id] = n; else delete P.extras[id]; render(); },
   jDur: el => { P.dur = Number(el.dataset.d); P.hora = null; render(); },
   jHora: el => { P.hora = Number(el.dataset.h); render(); const f = $('#j-nombre'); if (f) f.scrollIntoView({ block: 'center', behavior: 'smooth' }); },
   jReservar: async () => {
@@ -483,7 +513,8 @@ const acciones = {
     if (nombre.length < 2) { err.textContent = 'Escribe tu nombre.'; return; }
     if (!tel) { err.textContent = 'Escribe tu celular de 9 dígitos (empieza con 9).'; return; }
     const btn = $('[data-a=jReservar]'); btn.disabled = true; btn.textContent = 'Apartando…';
-    const res = await api.reservar(P.slug, { canchaId: P.canchaId, fecha: P.fecha, hora: P.hora, dur: P.dur, nombre, telefono: tel });
+    const res = await api.reservar(P.slug, { canchaId: P.canchaId, fecha: P.fecha, hora: P.hora, dur: P.dur, nombre, telefono: tel,
+      extras: Object.entries(P.extras).map(([id, cant]) => ({ id, cant })) });
     if (res.error) {
       await refrescarOcupados(); if (res.error === 'ocupado' || res.error === 'pasado') P.hora = null;
       render(); toast(ERRORES_J[res.error] || ERRORES_J.desconocido);
@@ -491,7 +522,7 @@ const acciones = {
     }
     P.tel = tel; ls.set(KEY_J, { nombre, telefono: tel });
     ls.set(KEY_MIS, [...ls.get(KEY_MIS, []).filter(x => x !== res.reserva.id), res.reserva.id].slice(-10));
-    P.resId = res.reserva.id; P.res = await api.estado(P.resId); P.hora = null;
+    P.resId = res.reserva.id; P.res = await api.estado(P.resId); P.hora = null; P.extras = {};
     await refrescarOcupados(); render(); window.scrollTo(0, 0);
   },
   jVer: async el => { P.resId = el.dataset.id; P.res = await api.estado(P.resId); render(); window.scrollTo(0, 0); },
@@ -522,9 +553,17 @@ document.addEventListener('change', async e => {
   }
   if (t.dataset.aCh) {
     const c = canchaPorId(t.dataset.cid); if (!c) return;
-    const patch = { id: c.id, nombre: c.nombre, precioHora: c.precioHora };
-    if (t.dataset.aCh === 'nombre') patch.nombre = t.value.trim() || c.nombre; else patch.precioHora = Math.max(0, Number(t.value) || 0);
+    const patch = { id: c.id, nombre: c.nombre, precioHora: c.precioHora, deporte: c.deporte || 'futbol' };
+    if (t.dataset.aCh === 'nombre') patch.nombre = t.value.trim() || c.nombre;
+    else if (t.dataset.aCh === 'deporte') patch.deporte = t.value;
+    else patch.precioHora = Math.max(0, Number(t.value) || 0);
     await hacer(api.guardarCancha(patch), 'Guardado'); await recargar();
+  }
+  if (t.dataset.aEx) {
+    const x = S.extras.find(y => y.id === t.dataset.eid); if (!x) return;
+    const patch = { id: x.id, nombre: x.nombre, precio: x.precio };
+    if (t.dataset.aEx === 'nombre') patch.nombre = t.value.trim() || x.nombre; else patch.precio = Math.max(0, Number(t.value) || 0);
+    await hacer(api.guardarExtra(patch), 'Guardado'); await recargar();
   }
 });
 document.addEventListener('input', e => {

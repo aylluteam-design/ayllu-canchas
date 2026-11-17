@@ -50,7 +50,7 @@ with sync_playwright() as p:
     cel.click(); pg.fill('#f-nombre','Manual Uno'); pg.fill('#f-tel','988777666'); pg.click('[data-a=guardarNueva]'); pg.wait_for_timeout(300)
     ok('Reserva manual guardada', pg.locator('.res', has_text='Manual Uno').count()==1)
     # vencimiento y plazo
-    pg.evaluate("""() => { const k='ayllu-canchas-demo-v3'; const d=JSON.parse(localStorage.getItem(k)); const r=d.reservas.find(x=>x.nombre==='Marcos Huamán'); r.venceEn=new Date(Date.now()-1000).toISOString(); localStorage.setItem(k,JSON.stringify(d)); }""")
+    pg.evaluate("""() => { const k='ayllu-canchas-demo-v4'; const d=JSON.parse(localStorage.getItem(k)); const r=d.reservas.find(x=>x.nombre==='Marcos Huamán'); r.venceEn=new Date(Date.now()-1000).toISOString(); localStorage.setItem(k,JSON.stringify(d)); }""")
     pg.reload(); pg.click('[data-a=entrarDemo]'); pg.click('nav [data-tab=pend]')
     ok('Reserva vencida se libera sola', 'Marcos' not in pg.inner_text('#vista') and 'Liberadas' in pg.inner_text('#vista'))
     # ajustes
