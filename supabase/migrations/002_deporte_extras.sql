@@ -21,6 +21,7 @@ create table public.extras (
 create index extras_negocio_idx on public.extras (negocio_id);
 alter table public.extras enable row level security;
 revoke all on public.extras from anon;
+grant select, insert, update, delete on public.extras to authenticated;
 create policy extras_dueno on public.extras for all to authenticated
   using (negocio_id = public.mi_negocio_id()) with check (negocio_id = public.mi_negocio_id());
 

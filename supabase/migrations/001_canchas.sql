@@ -78,6 +78,9 @@ alter table public.canchas  enable row level security;
 alter table public.reservas enable row level security;
 
 revoke all on public.negocios, public.canchas, public.reservas from anon;
+-- Permisos explícitos para el dueño con sesión (no depender de la opción "Grant API access to new tables automatically").
+-- La seguridad real la ponen las políticas RLS de abajo.
+grant select, insert, update, delete on public.negocios, public.canchas, public.reservas to authenticated;
 
 create or replace function public.mi_negocio_id() returns uuid
 language sql stable security definer set search_path = public as
